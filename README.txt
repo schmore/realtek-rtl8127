@@ -1,10 +1,10 @@
-The 10GbE controller on my Beelink Mini NAS Wildcat Lake 304 (running proxmox 9.2.11) doesn't work because of the incorrect driver (r8169) being installed  
+#The 10GbE controller (Realtek R8127) on my Beelink Mini NAS Wildcat Lake 304 (running proxmox 9.2.11) doesn't work because of the incorrect driver (r8169) being installed  
 
-From https://www.realtek.com/Download/List?cate_id=584  
-get "10G Ethernet LINUX driver r8127 for kernel up to 7.1" --> r8127-11.016.00.tar.bz2  
+#From https://www.realtek.com/Download/List?cate_id=584  
+#get "10G Ethernet LINUX driver r8127 for kernel up to 7.1" --> r8127-11.016.00.tar.bz2  
 
-Installation from proxmox node shell:  
-`cd /tmp
+#Installation from proxmox node shell:  
+cd /tmp
 wget https://github.com/schmore/realtek-rtl8127/raw/refs/heads/main/r8127-11.016.00.tar.bz2
 bunzip2 r8127-11.016.00.tar.bz2
 tar -xf r8127-11.016.00.tar
@@ -28,26 +28,26 @@ cd r8127-11.016.00
     Running hook script 'zz-proxmox-boot'..
     Re-executing '/etc/kernel/postinst.d/zz-proxmox-boot' in new private mount namespace..
     No /etc/kernel/proxmox-boot-uuids found, skipping ESP sync.
-    Completed.`
+    Completed.
 
-Now verify the new driver is loaded:  
-`root@node: lspci -nnk
+#Now verify the new driver is loaded:  
+root@node: lspci -nnk
 58:00.0 Ethernet controller [0200]: Realtek Semiconductor Co., Ltd. RTL8127 10GbE Controller [10ec:8127] (rev 05)
       Subsystem: Realtek Semiconductor Co., Ltd. Device [10ec:0123]
       Kernel driver in use: r8127
-      Kernel modules: r8127`
+      Kernel modules: r8127
 
 #Make sure the old driver is not used on reboot:  
-`echo "blacklist r8169" | tee /etc/modprobe.d/blacklist-r8169.conf`
+echo "blacklist r8169" | tee /etc/modprobe.d/blacklist-r8169.conf
 
 #Optional - Turn off aspm because it may cause instability:  
-`echo "options r8127 aspm=0" | tee /etc/modprobe.d/r8127.conf`
+echo "options r8127 aspm=0" | tee /etc/modprobe.d/r8127.conf
 
-`update-initramfs -u -k all
-reboot`
+update-initramfs -u -k all
+reboot
 
 #Test the controller is working:
-`root@node:~# ip link show
+root@node:~# ip link show
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
 2: nic0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
@@ -60,12 +60,13 @@ reboot`
     link/ether 50:bb:b5:db:49:80 brd ff:ff:ff:ff:ff:ff
     altname wlx50bbb5db4980
 5: vmbr0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
-    link/ether 78:55:36:0b:86:93 brd ff:ff:ff:ff:ff:ff`
+    link/ether 78:55:36:0b:86:93 brd ff:ff:ff:ff:ff:ff
 ....  
-the controller is nic0. If not initially reporting state UP, run:  
-`ip link set nic0 up`
-test the properties  
-`root@node:~# ethtool nic0
+
+#the controller is nic0. If not initially reporting state UP, run:  
+root@node:~# ip link set nic0 up
+#test the properties  
+root@node:~# ethtool nic0
 Settings for nic0:
         Supported ports: [ TP ]
         Supported link modes:   10baseT/Half 10baseT/Full
@@ -104,9 +105,9 @@ Settings for nic0:
         Wake-on: g
         Current message level: 0x00000033 (51)
                                drv probe ifdown ifup
-        Link detected: yes`
-  See "Link detected: yes"  and "Speed: 2500Mb/s". For my hardware, 2.5g is the expected output until I install a 10GB network card on my NAS  
-  Now, add nic0 to a virtual bridge in Proxmox so the card can be used:  
+        Link detected: yes
+  #See "Link detected: yes"  and "Speed: 2500Mb/s". For my hardware, 2.5g is the expected output until I install a 10GB network card on my NAS  
+  #Now, add nic0 to a virtual bridge in Proxmox so the card can be used:  
    Proxmox GUI --> Node --> System --> Network  
    Create --> Linux Bridge  
    name: vmbr1  

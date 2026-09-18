@@ -1,4 +1,18 @@
-#The 10GbE controller (Realtek R8127) on my Beelink Mini NAS Wildcat Lake 304 (running proxmox 9.2.11) doesn't work because of the incorrect driver (r8169) being installed  
+The 10GbE controller (Realtek R8127) on my Beelink Mini NAS Wildcat Lake 304 (running proxmox 9.2.11) doesn't work because of the incorrect driver (r8169) being installed by default on proxmox
+
+Transferring my data from the mini PC to a proper 12-bay NAS running Unraid (4x8TB SAS drive array + 1TB M.2 SSD cache) was saturating the 1 gigabit network link (~125MB/s max) and the 2x8TB ZFS mirrored SATA drives in proxmox should be able to put out ~250MB/s combined read. After these fixes I can max out the transfer rate to the drives' limit over the 10Gb link 
+
+#Proxmox version info:
+    Kernel Version: Linux 7.0.14-17-pve (2026-09-10T10:16Z)
+    Boot Mode: EFI
+    Manager Version: pve-manager/9.2.11/f6997e698c7933ea
+
+#My hardware relevant for this:
+    - 10Gtek 𝟭.𝟮𝟱/𝟮.𝟱/𝟱/𝟭𝟬𝗚-𝗧 𝗦𝗙𝗣+ 𝘁𝗼 𝗥𝗝𝟰𝟱 CAT.6a Copper Transceiver, Auto-Negotiation SFP+ Ethernet Module, up to 30-Meter, for Cisco SFP-10G-T-X, Netgear and More (https://a.co/d/07jabzrL)
+    - 10Gtek 10Gb PCI-E NIC Network Card, Dual SFP+ Port, with Intel 82599ES Controller, PCI Express Ethernet LAN Adapter Support Windows Server/Linux/VMware, Compare to Intel X520-DA2(E10G42BTDA) (https://a.co/d/0iffu21G)
+    - Beelink ME Pro 2-Bay AI NAS Mini PC Intel® Wildcat Lake 304 (https://www.bee-link.com/products/beelink-me-pro-2-bay-304)       - 3x Cat6 RJ45 ethernet cables to link  mini-PC <-10G-> NAS <-1G-> router <-2.5G-> mini-PC
+    - Adtran router provided by my ISP: single 1x2.5G + 4x1G LAN ports. The NAS (running Unraid , mini-PC, and openmediavault VM 
+
 
 #From https://www.realtek.com/Download/List?cate_id=584  
 #get "10G Ethernet LINUX driver r8127 for kernel up to 7.1" --> r8127-11.016.00.tar.bz2  
@@ -66,7 +80,7 @@ root@node:~# ip link show
 #the controller is nic0. If not initially reporting state UP, run:  
 root@node:~# ip link set nic0 up
 #test the properties  
-root@node:~# ethtool nic0
+root@LilNASME:~# ethtool nic0
 Settings for nic0:
         Supported ports: [ TP ]
         Supported link modes:   10baseT/Half 10baseT/Full
@@ -84,17 +98,19 @@ Settings for nic0:
                                 10000baseT/Full
                                 2500baseT/Full
                                 5000baseT/Full
-        Advertised pause frame use: Symmetric Receive-only
+        Advertised pause frame use: No
         Advertised auto-negotiation: Yes
         Advertised FEC modes: Not reported
-        Link partner advertised link modes:  10baseT/Half 10baseT/Full
-                                             100baseT/Half 100baseT/Full
+        Link partner advertised link modes:  10baseT/Full
+                                             100baseT/Full
                                              1000baseT/Full
+                                             10000baseT/Full
                                              2500baseT/Full
-        Link partner advertised pause frame use: Symmetric Receive-only
+                                             5000baseT/Full
+        Link partner advertised pause frame use: No
         Link partner advertised auto-negotiation: Yes
         Link partner advertised FEC modes: Not reported
-        Speed: 2500Mb/s
+        Speed: 10000Mb/s
         Duplex: Full
         Auto-negotiation: on
         Port: Twisted Pair
@@ -102,11 +118,11 @@ Settings for nic0:
         Transceiver: internal
         MDI-X: on
         Supports Wake-on: pumbg
-        Wake-on: g
+        Wake-on: d
         Current message level: 0x00000033 (51)
                                drv probe ifdown ifup
         Link detected: yes
-  #See "Link detected: yes"  and "Speed: 2500Mb/s". For my hardware, 2.5g is the expected output until I install a 10GB network card on my NAS  
+  #See "Link detected: yes"  and "Speed: 10000Mb/s". For my hardware, 10g is the expected output between the realtek controller on the mini-PC and the 10Gb PCIe network card
   #Now, add nic0 to a virtual bridge in Proxmox so the card can be used:  
    Proxmox GUI --> Node --> System --> Network  
    Create --> Linux Bridge  
@@ -114,4 +130,7 @@ Settings for nic0:
    Bridge ports: nic0  
    click Create, then "Apply Configuration"  
   
-  
+  #do not add anything under IPv4/CIDR. This will stop VMs from using the bridge freely
+  #add vmbr1 to the desired VMs as a network device (VirtIO paravirtualized) 
+  # assign the associated interface in the VM as an ethernet interface with a static IP
+
